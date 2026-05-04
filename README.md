@@ -1,4 +1,4 @@
-# Spring IoC Container Clone
+# Spring IoC Container
 
 ## 프로젝트 소개
 
