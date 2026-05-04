@@ -8,13 +8,17 @@ import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
-// "t2 - testPostService 빈 생성 성공 (Green)"
+// t3, t4 - 싱글톤 및 repository 빈 생성 성공 (Green)
+// t5 - 의존성 주입 실패 (Red)
 public class ApplicationContext {
 
     private final String basePackage;
+    private final Map<String, Object> beans = new HashMap<>();
 
     public ApplicationContext(String basePackage) {
         this.basePackage = basePackage;
@@ -24,6 +28,10 @@ public class ApplicationContext {
     }
 
     public <T> T genBean(String beanName) {
+        if (beans.containsKey(beanName)) {
+            return (T) beans.get(beanName);
+        }
+
         Reflections reflections = new Reflections(basePackage);
 
         Set<Class<?>> classes = new HashSet<>();
@@ -40,7 +48,9 @@ public class ApplicationContext {
             String currentBeanName = lowerFirst(clazz.getSimpleName());
 
             if (currentBeanName.equals(beanName)) {
-                return (T) createInstance(clazz);
+                Object instance = createInstance(clazz);
+                beans.put(beanName, instance);
+                return (T) instance;
             }
         }
 
