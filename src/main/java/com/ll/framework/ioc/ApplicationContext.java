@@ -13,8 +13,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-// t3, t4 - 싱글톤 및 repository 빈 생성 성공 (Green)
-// t5 - 의존성 주입 실패 (Red)
+//t5, t6 - testPostService와 testFacadePostService 의존성 주입 성공 (Green)"
 public class ApplicationContext {
 
     private final String basePackage;
@@ -64,6 +63,10 @@ public class ApplicationContext {
 
             Class<?>[] parameterTypes = constructor.getParameterTypes();
             Object[] args = new Object[parameterTypes.length];
+
+            for (int i = 0; i < parameterTypes.length; i++) {
+                args[i] = genBean(lowerFirst(parameterTypes[i].getSimpleName()));
+            }
 
             return constructor.newInstance(args);
 
