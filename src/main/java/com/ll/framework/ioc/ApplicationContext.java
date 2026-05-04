@@ -13,7 +13,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-//t5, t6 - testPostService와 testFacadePostService 의존성 주입 성공 (Green)"
 public class ApplicationContext {
 
     private final String basePackage;
@@ -24,13 +23,18 @@ public class ApplicationContext {
     }
 
     public void init() {
+        Set<Class<?>> componentClasses = scanComponentClasses();
+
+        for (Class<?> clazz : componentClasses) {
+            createBean(clazz);
+        }
     }
 
     public <T> T genBean(String beanName) {
-        if (beans.containsKey(beanName)) {
-            return (T) beans.get(beanName);
-        }
+        return (T) beans.get(beanName);
+    }
 
+    private Set<Class<?>> scanComponentClasses() {
         Reflections reflections = new Reflections(basePackage);
 
         Set<Class<?>> classes = new HashSet<>();
@@ -39,21 +43,28 @@ public class ApplicationContext {
         classes.addAll(reflections.getTypesAnnotatedWith(Repository.class));
         classes.addAll(reflections.getTypesAnnotatedWith(Configuration.class));
 
-        for (Class<?> clazz : classes) {
-            if (clazz.isAnnotation() || clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
-                continue;
-            }
+        classes.removeIf(this::isNotBeanClass);
 
-            String currentBeanName = lowerFirst(clazz.getSimpleName());
+        return classes;
+    }
 
-            if (currentBeanName.equals(beanName)) {
-                Object instance = createInstance(clazz);
-                beans.put(beanName, instance);
-                return (T) instance;
-            }
+    private boolean isNotBeanClass(Class<?> clazz) {
+        return clazz.isAnnotation()
+                || clazz.isInterface()
+                || Modifier.isAbstract(clazz.getModifiers());
+    }
+
+    private Object createBean(Class<?> clazz) {
+        String beanName = getBeanName(clazz);
+
+        if (beans.containsKey(beanName)) {
+            return beans.get(beanName);
         }
 
-        return null;
+        Object instance = createInstance(clazz);
+        beans.put(beanName, instance);
+
+        return instance;
     }
 
     private Object createInstance(Class<?> clazz) {
@@ -61,21 +72,27 @@ public class ApplicationContext {
             Constructor<?> constructor = clazz.getDeclaredConstructors()[0];
             constructor.setAccessible(true);
 
-            Class<?>[] parameterTypes = constructor.getParameterTypes();
-            Object[] args = new Object[parameterTypes.length];
-
-            for (int i = 0; i < parameterTypes.length; i++) {
-                args[i] = genBean(lowerFirst(parameterTypes[i].getSimpleName()));
-            }
+            Object[] args = createConstructorArgs(constructor);
 
             return constructor.newInstance(args);
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private String lowerFirst(String simpleName) {
+    private Object[] createConstructorArgs(Constructor<?> constructor) {
+        Class<?>[] parameterTypes = constructor.getParameterTypes();
+        Object[] args = new Object[parameterTypes.length];
+
+        for (int i = 0; i < parameterTypes.length; i++) {
+            args[i] = createBean(parameterTypes[i]);
+        }
+
+        return args;
+    }
+
+    private String getBeanName(Class<?> clazz) {
+        String simpleName = clazz.getSimpleName();
         return Character.toLowerCase(simpleName.charAt(0)) + simpleName.substring(1);
     }
 }
